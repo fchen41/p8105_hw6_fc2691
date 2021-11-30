@@ -4,3 +4,42 @@ author: "fc2691"
 date: "11/27/2021"
 output: html_document
 ---
+```{r setting}
+library(tidyverse)
+library(knitr)
+
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+```
+
+```{r import data}
+birth_data <- read.csv("./birthweight.csv") %>% 
+  janitor::clean_names()
+
+```
+
+```{r clean data}
+birth_clean <- 
+  birth_data %>% 
+  mutate(babysex = as.factor(babysex), 
+         frace = as.factor(frace), 
+         malform = as.factor(malform), 
+         mrace = as.factor(mrace))
+
+kable(birth_clean[1:10,])
+```
+

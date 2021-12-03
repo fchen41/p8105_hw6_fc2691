@@ -4,10 +4,10 @@ author: "fc2691"
 date: "11/27/2021"
 output: html_document
 ---
-```{r setting}
+```{r set up, include=FALSE}
 library(tidyverse)
 library(knitr)
-
+library(modelr)
 
 knitr::opts_chunk$set(
   fig.width = 6,
@@ -29,17 +29,79 @@ scale_fill_discrete = scale_fill_viridis_d
 ```{r import data}
 birth_data <- read.csv("./birthweight.csv") %>% 
   janitor::clean_names()
-
+str(birth_data)
 ```
 
 ```{r clean data}
-birth_clean <- 
-  birth_data %>% 
-  mutate(babysex = as.factor(babysex), 
-         frace = as.factor(frace), 
-         malform = as.factor(malform), 
-         mrace = as.factor(mrace))
+#Change numeric to factors appropriately
+col_fac <- c(1, 7, 9, 13:16) 
+birth_data[,col_fac] <- lapply(birth_data[,col_fac] , factor)
+str(birth_data)
 
-kable(birth_clean[1:10,])
+kable(birth_data[1:10,])
+
+#Checking for missing data
+sum(is.na(birth_data))
+options(na.action = na.warn)
+
+#Take a look at the birthweight distribution
+summary(birth_data$bwt)
+hist(birth_data$bwt)
 ```
+There is no missing data in this database. 
+The data mean number is nearly same as the median number. With the combination of histogram, birthweight parameter nearly follows the normal distribution.  
+
+Use backward elimination to select variables and build regression models. 
+```{r regression model for birthweight}
+# Prepare data for linear model
+birth_prep <- 
+  birth_data %>% 
+  select(-babysex, -frace, -malform, -mrace, -parity, -pnumlbw, -pnumsga, -wtgain)
+
+# Fit using all predictors
+birth_model = lm(bwt ~ ., data = birth_prep)
+summary(birth_model)
+
+#Take out ppbmi
+birth_model = update(birth_model, . ~ . -ppbmi)
+summary(birth_model)
+
+#Take out menarche
+birth_model = update(birth_model, . ~ . -menarche)
+summary(birth_model)
+
+plot(birth_model)
+
+#Tidying output
+birth_model %>% 
+  broom::tidy() %>% 
+  select(term, estimate, p.value)
+
+coef(birth_model)
+```
+Thus I get the regression model:  
+Y = -6560.47+132.41\*bhead+77.37\*blength+4.02\*delwt+1.022\*fincome+13.04\*gaweeks+8.042\*mheight+4.249\*momage+(-2.912)\*ppwt+(-2.902)\*smoken  
+Then using add_predictions and add_residuals to diagnostic and make a plot.   
+```{r plot of model residuals against fitted values}
+birth_data %>% 
+  modelr::add_residuals(birth_model) %>%
+  modelr::add_predictions(birth_model) %>% 
+  select(resid, pred) %>% 
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point()
+```
+Now it is time to compare model to two others:  
+
+- One using length at birth and gestational age as predictors (main effects only)  
+- One using head circumference, length, sex, and all interactions (including the three-way interaction) between these. 
+Thus I get the two new linear regression models:  
+```{r}
+birth_gest_model <- lm(bwt ~ blength + gaweeks, data = birth_data)
+summary(birth_gest_model)
+head_length_sex_inter_model <- lm(bwt ~ bhead * blength * babysex, data = birth_data)
+summary(head_length_sex_inter_model)
+```
+
+
+
 

@@ -8,6 +8,7 @@ output: html_document
 library(tidyverse)
 library(knitr)
 library(modelr)
+library(mgcv)
 
 knitr::opts_chunk$set(
   fig.width = 6,
@@ -96,10 +97,41 @@ Now it is time to compare model to two others:
 - One using head circumference, length, sex, and all interactions (including the three-way interaction) between these. 
 Thus I get the two new linear regression models:  
 ```{r}
+# Linear regression for other two regression models. 
 birth_gest_model <- lm(bwt ~ blength + gaweeks, data = birth_data)
 summary(birth_gest_model)
 head_length_sex_inter_model <- lm(bwt ~ bhead * blength * babysex, data = birth_data)
 summary(head_length_sex_inter_model)
+
+# Calculate the cross-validated prediction error. 
+cv_birth =
+  crossv_mc(birth_data, 100) %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble))
+
+# RMSE and fit models. 
+cv_birth <- 
+  cv_birth %>% 
+  mutate(
+    birth_model = map(train, ~lm(bwt ~ bhead + blength + delwt + fincome + gaweeks + mheight + momage + ppwt + smoken, data = .x)), 
+    birth_gest_model = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)), 
+    head_length_sex_inter_model = map(train, ~lm(bwt ~ bhead * blength * babysex, data = birth_data), data = .x)) %>% 
+  mutate(
+    rmse_birth = map2_dbl(birth_model, test, ~rmse(model = .x, data = .y)),
+    rmse_bir_ges = map2_dbl(birth_gest_model, test, ~rmse(model = .x, data = .y)),
+    rmse_hls_inter = map2_dbl(head_length_sex_inter_model, test, ~rmse(model = .x, data = .y)))
+
+# Draw a plot to show RMSE distribution
+cv_birth %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
 ```
 
 

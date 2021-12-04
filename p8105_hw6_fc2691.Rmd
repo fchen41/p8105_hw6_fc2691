@@ -9,6 +9,7 @@ library(tidyverse)
 library(knitr)
 library(modelr)
 library(mgcv)
+library(patchwork)
 
 knitr::opts_chunk$set(
   fig.width = 6,
@@ -26,7 +27,7 @@ options(
 scale_colour_discrete = scale_colour_viridis_d
 scale_fill_discrete = scale_fill_viridis_d
 ```
-
+## Problem 1
 ```{r import data}
 birth_data <- read.csv("./birthweight.csv") %>% 
   janitor::clean_names()
@@ -134,6 +135,75 @@ cv_birth %>%
   ggplot(aes(x = model, y = rmse)) + geom_violin()
 ```
 
+## Problem 2  
+```{r Download 2017 Central Park Weather Data, message = FALSE}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
 
+```{r bootstrapping}
+set.seed(1)
 
+# Build bootstrap function
+boot_sample = function(df) {
+  sample_frac(df, replace = TRUE)
+}
+
+boot_sample(weather_df) %>% 
+  ggplot(aes(x = tmin, y = tmax)) + 
+  geom_point(alpha = .5) +
+  stat_smooth(method = "lm") +
+  labs(title = "linear regression", x =  "predictor(tmin)", y = "response(tmax)")
+```
+
+The plot shows the association between the predictor(tmin) and response(tmax).   
+```{r bootstrap analysis}
+weather_boot <- 
+  data_frame(
+    strap_number = 1:5000,
+    strap_sample = rerun(5000, boot_sample(weather_df))
+  )
+
+# Bootstrap Analysis
+weather_results <- 
+  weather_boot %>% 
+  mutate(
+    models = map(strap_sample, ~lm(tmax ~ tmin, data = .x) ),
+    results = map(models, broom::tidy)) %>% 
+  select(-strap_sample) %>% 
+  unnest(results) %>% 
+  select(-std.error, -statistic, -p.value) %>% 
+  pivot_wider(names_from = term, 
+              values_from = estimate) %>% 
+  janitor::clean_names() %>% 
+  mutate(log_b0b1 = log(intercept * tmin), 
+         r_square = map(models, broom::glance)) %>% 
+  select(strap_number, log_b0b1, r_square) %>% 
+  unnest(r_square)
+
+```
+Then two plots will be shown for those two estimates.  
+```{r PLot the distribution of two quantities}
+log_b0b1_plot <- 
+  weather_results %>% 
+  ggplot(aes(x = log_b0b1)) +
+  geom_histogram()
+
+log_r_square_plot <- 
+  weather_results %>% 
+  ggplot(aes(x = r.squared)) +
+  geom_histogram()
+
+log_b0b1_plot + log_r_square_plot + plot_annotation(
+  title = 'Distribution for log and rsquare')
+```
 

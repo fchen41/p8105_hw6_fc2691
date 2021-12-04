@@ -206,4 +206,16 @@ log_r_square_plot <-
 log_b0b1_plot + log_r_square_plot + plot_annotation(
   title = 'Distribution for log and rsquare')
 ```
-
+Both logb0b1 and r^2 are nearly normally distributed, and the average value for logb0b1 and r^2 are nearly locate around 2.02 and 0.91 
+```{r identify quantiles and find confidence interval}
+#95% confidence
+weather_results_ci <-
+  weather_results %>% 
+  summarize(
+    r_square_ci_lower = quantile(r.squared, 0.025), 
+    r_square_ci_upper = quantile(r.squared, 0.975), 
+    log_ci_lower = quantile(log_b0b1, 0.025), 
+    log_ci_upper = quantile(log_b0b1, 0.975))
+weather_results_ci
+```
+When trying to find confidence interval for those two estimates with a significance level of 95%. I get confidence interval (0.894, 0.927) for r^2, and confidence interval(1.965, 2.059) for log(b0*b1). 

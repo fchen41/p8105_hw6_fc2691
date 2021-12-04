@@ -2,7 +2,7 @@
 title: "p8105_hw6_fc2691"
 author: "fc2691"
 date: "11/27/2021"
-output: html_document
+output: github_document
 ---
 ```{r set up, include=FALSE}
 library(tidyverse)
@@ -48,12 +48,12 @@ options(na.action = na.warn)
 
 #Take a look at the birthweight distribution
 summary(birth_data$bwt)
-hist(birth_data$bwt)
+hist(birth_data$bwt, main = "Histogram of birthweight", xlab = "Birthweight") 
 ```
 There is no missing data in this database. 
 The data mean number is nearly same as the median number. With the combination of histogram, birthweight parameter nearly follows the normal distribution.  
 
-Use backward elimination to select variables and build regression models. 
+After cleaning the dataset, I use backward elimination to select variables(predictions) and build regression models. 
 ```{r regression model for birthweight}
 # Prepare data for linear model
 birth_prep <- 
@@ -92,7 +92,7 @@ birth_data %>%
   ggplot(aes(x = pred, y = resid)) + 
   geom_point()
 ```
-Now it is time to compare model to two others:  
+Now it is time to compare model to two others linear models with different predictors:  
 
 - One using length at birth and gestational age as predictors (main effects only)  
 - One using head circumference, length, sex, and all interactions (including the three-way interaction) between these. 
@@ -134,7 +134,7 @@ cv_birth %>%
   mutate(model = fct_inorder(model)) %>% 
   ggplot(aes(x = model, y = rmse)) + geom_violin()
 ```
-
+Compared to two other linear models, the root mean square error with my 9 predictors is the lowest on average. And the rmse difference between my model and that three way interactions is not that largem while models using birthlength and gestational age has the largest rmse overall. After all, my linear regression model the best at predicting observation data among those three.   
 ## Problem 2  
 ```{r Download 2017 Central Park Weather Data, message = FALSE}
 weather_df = 
